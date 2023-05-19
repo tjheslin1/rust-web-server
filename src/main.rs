@@ -7,18 +7,22 @@ use std::{
     thread,
     time::Duration,
 };
+use futures::executor::block_on;
 
 fn main() {
-    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    let pool = ThreadPool::new(4);
+    // let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    // let pool = ThreadPool::new(4);
+//
+    // for stream in listener.incoming() {
+        // let stream = stream.unwrap();
+//
+        // pool.execute(|| {
+            // handle_connection(stream);
+        // });
+    // }
 
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-        pool.execute(|| {
-            handle_connection(stream);
-        });
-    }
+    let future = do_something();
+    block_on(do_something());
 
     println!("Shutting down.");
 }
@@ -44,4 +48,8 @@ fn handle_connection(mut stream: TcpStream) {
     let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
 
     stream.write_all(response.as_bytes()).unwrap();
+}
+
+async fn do_something() {
+	println!("Something!");
 }
