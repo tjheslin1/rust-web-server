@@ -152,31 +152,4 @@ mod tests {
 
         assert_eq!(*state_updated.lock().unwrap(), true);
     }
-
-    // #[test]
-    // fn pool_creation() {
-    // let result = ThreadPool::build(2);
-    //
-    // assert!(result.is_ok());
-    //
-    // let actual = result.unwrap();
-    //
-    // let (sender, receiver) = mpsc::channel();
-    //
-    // let expected = ThreadPool {
-    // sender: Some(sender),
-    // workers: vec![
-    // Worker {
-    // id: 0,
-    // thread: Some(thread::spawn(|| {})),
-    // },
-    // Worker {
-    // id: 1,
-    // thread: Some(thread::spawn(|| {})),
-    // },
-    // ],
-    // };
-    //
-    // assert_eq!(actual, expected);
-    // }
 }
