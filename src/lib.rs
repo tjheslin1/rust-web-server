@@ -3,7 +3,7 @@ use std::{
     thread,
 };
 
-// #[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct ThreadPool {
     workers: Vec<Worker>,
     sender: Option<mpsc::Sender<Job>>,
@@ -43,7 +43,10 @@ impl ThreadPool {
             workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers, sender: Some(sender) }
+        ThreadPool {
+            workers,
+            sender: Some(sender),
+        }
     }
 
     pub fn build(size: usize) -> Result<ThreadPool, PoolCreationError> {
@@ -71,37 +74,40 @@ impl Worker {
             let message = receiver
                 .lock()
                 .expect("Error occurred obtaining lock in Worker {id}")
-                .recv();  // blocks
+                .recv(); // blocks
 
             match message {
-            	Ok(job) => {
-            		println!("Worker {id} got a job; executing.");
-            		
-   		            job();
-            	}
-            	Err(_) => {
-            		println!("Worker {id} disconnected; shutting down.");
-            		break;
-            	}
+                Ok(job) => {
+                    println!("Worker {id} got a job; executing.");
+
+                    job();
+                }
+                Err(_) => {
+                    println!("Worker {id} disconnected; shutting down.");
+                    break;
+                }
             }
         });
 
-        Worker { id, thread: Some(thread) }
+        Worker {
+            id,
+            thread: Some(thread),
+        }
     }
 }
 
 impl Drop for ThreadPool {
-	fn drop(&mut self) {
-		drop(self.sender.take());
-		
-		for worker in &mut self.workers {
-			println!("Shutting down worker {}", worker.id);
+    fn drop(&mut self) {
+        drop(self.sender.take());
 
-			if let Some(thread) = worker.thread.take() {
-				thread.join().unwrap();
-			}
-		}
-	}
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
 }
 
 impl PartialEq for Worker {
@@ -110,34 +116,67 @@ impl PartialEq for Worker {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-// use super::*;
-//
-// #[test]
-// fn pool_creation_error() {
-// let result = ThreadPool::build(0);
-//
-// assert!(result.is_err());
-//
-// let actual = result.unwrap_err();
-// let expected = PoolCreationError { message: "Cannot create a pool of size 0!" };
-//
-// assert_eq!(actual, expected);
-// }
-//
-// #[test]
-// fn pool_creation() {
-// let result = ThreadPool::build(2);
-//
-// assert!(result.is_ok());
-//
-// let actual = result.unwrap();
-// let expected = ThreadPool { workers: vec![
-// Worker { id: 0, thread: thread::spawn(|| {}) },
-// Worker { id: 1, thread: thread::spawn(|| {}) },
-// ]};
-//
-// assert_eq!(actual, expected);
-// }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn pool_creation_error() {
+        let result = ThreadPool::build(0);
+
+        assert!(result.is_err());
+
+        let actual = result.unwrap_err();
+        let expected = PoolCreationError {
+            message: "Cannot create a pool of size 0!",
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_worker_processes_job() {
+        let (sender, r) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(r));
+
+        let _ = Worker::new(0, receiver);
+
+        let state_updated = Arc::new(Mutex::new(false));
+        let state_ref = state_updated.clone();
+        let f = move || *state_ref.lock().unwrap() = true;
+
+        sender.send(Box::new(f)).unwrap();
+
+        thread::sleep(Duration::from_secs(1));
+
+        assert_eq!(*state_updated.lock().unwrap(), true);
+    }
+
+    // #[test]
+    // fn pool_creation() {
+    // let result = ThreadPool::build(2);
+    //
+    // assert!(result.is_ok());
+    //
+    // let actual = result.unwrap();
+    //
+    // let (sender, receiver) = mpsc::channel();
+    //
+    // let expected = ThreadPool {
+    // sender: Some(sender),
+    // workers: vec![
+    // Worker {
+    // id: 0,
+    // thread: Some(thread::spawn(|| {})),
+    // },
+    // Worker {
+    // id: 1,
+    // thread: Some(thread::spawn(|| {})),
+    // },
+    // ],
+    // };
+    //
+    // assert_eq!(actual, expected);
+    // }
+}
