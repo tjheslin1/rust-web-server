@@ -1,5 +1,7 @@
-use pizza::ThreadPool;
+pub mod executor;
+pub mod timer_future;
 
+use executor::{Spawner, new_executor_and_spawner};
 use std::{
     fs,
     io::{prelude::*, BufReader},
@@ -7,24 +9,41 @@ use std::{
     thread,
     time::Duration,
 };
-use futures::executor::block_on;
+
+// use timer_future::TimerFuture;
 
 fn main() {
-    // let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    // let pool = ThreadPool::new(4);
-//
-    // for stream in listener.incoming() {
-        // let stream = stream.unwrap();
-//
-        // pool.execute(|| {
-            // handle_connection(stream);
-        // });
-    // }
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    let future = do_something();
-    block_on(do_something());
+    let (executor, spawner) = new_executor_and_spawner();
+
+    for stream in listener.incoming() {
+        let stream = stream.unwrap();
+        let spawner_clone = spawner.clone();
+
+		spawner_clone.spawn(async {
+			println!("Spawning request:");
+		    handle_connection(stream);
+		    println!("Connection handled.");
+		});
+		// handle(&spawner.clone(), stream);
+
+        // Drop the spawner so that our executor knows it is finished and won't
+        // receive more incoming tasks to run.
+        println!("Dropping spawner clone");
+        drop(spawner_clone);
+
+        // Run the executor until the task queue is empty.
+        executor.run();
+    }
 
     println!("Shutting down.");
+}
+
+fn handle(spawner: &Spawner, stream: TcpStream) {
+	spawner.spawn(async {
+	    handle_connection(stream);
+	});
 }
 
 // fork/join model, the single-threaded async I/O model,
@@ -51,5 +70,5 @@ fn handle_connection(mut stream: TcpStream) {
 }
 
 async fn do_something() {
-	println!("Something!");
+    println!("Something!");
 }
